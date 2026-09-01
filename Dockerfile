@@ -1,6 +1,7 @@
 # =============================================================================
 # RER DSP — job-data-migration (dsp-batch)
-# Build context: this repository root
+# Primary context: this repository root.
+# Extra dsp_config context: rer-dsp-core/config (Compose additional_contexts)
 # =============================================================================
 
 FROM eclipse-temurin:21-jdk-jammy AS build
@@ -16,7 +17,7 @@ RUN chmod +x ./mvnw \
 FROM eclipse-temurin:21-jre-jammy AS runtime
 WORKDIR /app
 
-# supercronic: Unix crontab in continuous mode (core mounts the entrypoint).
+# supercronic: Unix crontab in continuous mode (entrypoint is baked into the image).
 # jq + postgresql-client: option 3 publishes GeoServer layers after the first load
 # (same populate_geoserver.sh used by ./setup.sh, called over the Docker network).
 # Pinned: https://github.com/aptible/supercronic/releases/tag/v0.2.49
@@ -41,7 +42,19 @@ RUN apt-get update && apt-get upgrade -y \
 
 COPY --from=build /app/target/dsp-batch-*.jar /app/app.jar
 
+COPY --from=dsp_config docker/select-runtime-config.sh /tmp/select-runtime-config.sh
+COPY --from=dsp_config Job-Data-Migration/application/ /tmp/migration-app/
+COPY --from=dsp_config Job-Data-Migration/docker/entrypoint.sh /migration-entrypoint.sh
+COPY --from=dsp_config Job-Data-Migration/docker/publish_geoservers.sh /publish-geoservers.sh
+COPY --from=dsp_config GeoserverExhibition/docker/populate_geoserver.sh /opt/populate_geoserver.sh
+COPY --from=dsp_config map/ /tmp/map/
+RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /opt/populate_geoserver.sh \
+    && mkdir -p /config \
+    && /tmp/select-runtime-config.sh pick /tmp/migration-app application.yaml /config/application.yaml \
+    && /tmp/select-runtime-config.sh pick /tmp/map mapLayersConfig.json /config/mapLayersConfig.json \
+    && rm -rf /tmp/migration-app /tmp/map /tmp/select-runtime-config.sh
+
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \
     SPRING_MAIN_WEB_APPLICATION_TYPE=none
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["/migration-entrypoint.sh"]
