@@ -1,0 +1,202 @@
+# Demo YAML: import source_geo_import_db -> target_geo_import_db (3 levels).
+# Hierarchy: continent (L1) -> country (L2) -> admin_division (L3).
+# Copy or merge into application.yaml for local import tests.
+spring:
+  application:
+    name: dsp-batch
+  datasource:
+    batch:
+      url: jdbc:postgresql://localhost:5432/target_geo_db?currentSchema=data_migration
+      username: target_user
+      password: target_user
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 2
+        pool-name: batch-pool
+        connection-test-query: SELECT 1
+    source:
+      url: jdbc:postgresql://localhost:5432/source_geo_import_db
+      username: source_user
+      password: source_user
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 20
+        minimum-idle: 5
+        pool-name: source-pool
+    target:
+      url: jdbc:postgresql://localhost:5432/target_geo_db
+      username: target_user
+      password: target_user
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 20
+        minimum-idle: 5
+        pool-name: target-pool
+    geo-target:
+      url: jdbc:postgresql://localhost:20656/dsp-geoserver-exhibition-db
+      username: dsp_geo
+      password: dsp_geo
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 20
+        minimum-idle: 5
+        pool-name: geo-target-pool
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
+
+server:
+  port: 8086
+
+batch:
+  source-timezone: America/Sao_Paulo
+  admin-unit:
+    level-1:
+      source-table: source_admin_units.source_l1_continents
+      target-table: target_admin_units.target_l1_continent
+      primary-key: source_continent_pk
+      name-column: source_continent_name
+      geometry-column: source_continent_geom
+      creation-date-column: source_created_at
+      updated-at-column: source_updated_at
+      where-clause: "1=1"
+      persist-columns:
+        - source_continent_pk
+        - source_continent_name
+        - source_created_at
+        - source_updated_at
+      column-mapping:
+        source_continent_pk: target_continent_id
+        source_continent_name: target_continent_label
+        source_continent_geom: target_continent_geometry
+        source_created_at: target_created_at
+        source_updated_at: target_updated_at
+      layer-name: source-continents-geoserver-layer
+      srid: 4326
+      # sync-key default: admin_unit_level_1
+    level-2:
+      source-table: source_admin_units.source_l2_countries
+      target-table: target_admin_units.target_l2_country
+      primary-key: source_country_pk
+      name-column: source_country_name
+      partition-column: source_continent_fk
+      geometry-column: source_country_geom
+      creation-date-column: source_created_at
+      updated-at-column: source_updated_at
+      where-clause: "1=1"
+      persist-columns:
+        - source_country_pk
+        - source_country_name
+        - source_continent_fk
+        - source_created_at
+        - source_updated_at
+      column-mapping:
+        source_country_pk: target_country_id
+        source_country_name: target_country_label
+        source_continent_fk: target_continent_ref
+        source_country_geom: target_country_geometry
+        source_created_at: target_created_at
+        source_updated_at: target_updated_at
+      layer-name: source-countries-geoserver-layer
+      srid: 4326
+      # sync-key default: admin_unit_level_2
+    level-3:
+      source-table: source_admin_units.source_l3_admin_areas
+      target-table: target_admin_units.target_l3_admin_division
+      primary-key: source_area_pk
+      partition-column: source_country_fk
+      name-column: source_area_name
+      geometry-column: source_area_geom
+      creation-date-column: source_created_at
+      updated-at-column: source_updated_at
+      where-clause: "1=1"
+      persist-columns:
+        - source_area_pk
+        - source_area_name
+        - source_country_fk
+        - source_created_at
+        - source_updated_at
+      column-mapping:
+        source_area_pk: target_division_id
+        source_area_name: target_division_label
+        source_country_fk: target_country_ref
+        source_area_geom: target_division_geometry
+        source_created_at: target_created_at
+        source_updated_at: target_updated_at
+      layer-name: source-admin-areas-geoserver-layer
+      srid: 4326
+      # sync-key default: admin_unit_level_3
+  area-of-interest:
+    source-table: source_properties.source_property
+    target-table: target_properties.target_property
+    primary-key: source_pk
+    creation-date-column: source_created_at
+    updated-at-column: source_updated_at
+    territory-level-3-column: source_territory_level_3_fk
+    total-area-column: source_area
+    geometry-column: source_geom
+    where-clause: "1=1"
+    # additional-columns:
+    #   - source_optional_attr
+    # business-only-persist-columns:
+    #   - source_theme_1
+    #   - source_theme_2
+    #   - source_theme_3
+    #   - source_theme_4
+    layer-name: source-properties-geoserver-layer
+    srid: 4326
+    # sync-key default: area_of_interest
+
+  layers:
+    - source-table: source_layers.<table_name>
+      primary-key: source_pk
+      area-of-interest-id-column: source_aoi_fk
+      creation-date-column: source_created_at
+      updated-at-column: source_updated_at
+      label-column: source_name
+      geometry-column: source_geom
+      # srid: 4326
+      # additional-columns:
+      #   - codigo
+      #   - area_ha
+
+parallelization:
+  jobs:
+    adminUnitLevel1GeoserverJob:
+      enabled: true
+      thread-pool-size: 1
+      chunk-size: 1
+      page-size: 1000
+      queue-capacity: 100
+    adminUnitLevel2GeoserverJob:
+      enabled: true
+      thread-pool-size: 12
+      chunk-size: 1
+      page-size: 1000
+      queue-capacity: 100
+    adminUnitLevel3GeoserverJob:
+      enabled: true
+      thread-pool-size: 12
+      chunk-size: 470
+      page-size: 1000
+      queue-capacity: 100
+    areaOfInterestGeoserverJob:
+      enabled: true
+      thread-pool-size: 1
+      chunk-size: 100
+      page-size: 1000
+      queue-capacity: 100
+
+execution-jobs:
+  admin-unit-level-1-geoserver-job: true
+  admin-unit-level-2-geoserver-job: true
+  admin-unit-level-3-geoserver-job: true
+  area-of-interest-geoserver-job: true
+  layer-jobs: true
+
+logging:
+  level:
+    br.car.dsp_batch: INFO

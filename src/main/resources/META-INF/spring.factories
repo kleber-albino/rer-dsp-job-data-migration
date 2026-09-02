@@ -1,0 +1,2 @@
+org.springframework.context.ApplicationContextInitializer=\
+br.car.dsp_batch.configuration.DatabaseConnectivityInitializer
