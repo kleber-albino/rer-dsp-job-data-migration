@@ -1,46 +1,44 @@
-# RER DSP — Job Data Migration
+# rer-dsp-job-data-migration
 
-**Projeto**: Rural Environmental Registry — Data Sharing Platform  
-**Componente**: Job de Migração de Dados (ETL)  
-**Tipo**: Digital Public Good (DPG)  
-**Licença**: GPL-3.0
+> Este repositório é um dos módulos do **DSP (Data Sharing Platform)**, parte do ecossistema RER.
+> A documentação completa do projeto está em **[rer-dsp-docs](https://github.com/Rural-Environmental-Registry/rer-dsp-docs)**.
+> As informações abaixo tratam apenas deste módulo, não do projeto DSP como um todo.
 
----
+## Qual parte do DSP este módulo é
 
-## 📋 Visão Geral
+```mermaid
+flowchart LR
+    Source[(Banco de origem do adotante)]
+    Job((rer-dsp-job-data-migration))
+    Target[(dsp-db / geo-target)]
 
-Job de migração e transformação de dados da plataforma DSP do RER. Responsável pela extração, transformação e carga (ETL) de dados ambientais rurais entre sistemas legados e a nova plataforma.
-
-## 🏗️ Arquitetura
-
-Este componente faz parte do ecossistema RER DSP:
-
-```
-rer-dsp-frontend (UI)
-    ↓
-rer-dsp-backend (API REST)
-    ↓
-rer-dsp-core (lógica de domínio)
-    ↓
-rer-dsp-job-data-migration  ← ESTE REPO
-rer-dsp-job-geo-file-generation (geoespacial)
+    Source -- extração --> Job
+    Job -- carga --> Target
 ```
 
-## 🚀 Setup
+## Objetivo
+
+ETL baseado em Spring Batch que migra dados geoespaciais do banco de origem do adotante
+para os bancos do DSP.
+
+## Responsabilidades
+
+- Extrair dados geoespaciais da fonte do adotante
+- Transformar e validar as feições migradas
+- Carregar (UPSERT) os dados nos bancos do DSP (`target` e `geo-target`)
+
+## Tecnologias
+
+Java 21, Spring Boot 3.4.2, Spring Batch, PostgreSQL/PostGIS, Maven.
+
+## Como executar
 
 ```bash
-# Clonar
-git clone https://github.com/Rural-Environmental-Registry/rer-dsp-job-data-migration.git
-cd rer-dsp-job-data-migration
-
-# Instruções de build serão adicionadas conforme desenvolvimento
+./mvnw spring-boot:run
 ```
 
-## 📖 Documentação
+Ou, preferencialmente, via `rer-dsp-core` (`./setup.sh`), que orquestra a stack completa.
 
-- [RER — Visão Geral](https://github.com/Rural-Environmental-Registry)
-- [SDD (System Design Document)](https://github.com/Rural-Environmental-Registry/core)
+## Licença
 
-## 📜 Licença
-
-Este projeto é licenciado sob a [GNU General Public License v3.0](LICENSE).
+[GNU General Public License v3.0](LICENSE)
