@@ -66,6 +66,10 @@ public class WatermarkChangeDetectionEngine {
         jobContext.putString(WatermarkContextKeys.SOURCE_TABLE, spec.sourceTable());
         jobContext.put(WatermarkContextKeys.ORPHAN_CHECK_RAN, runOrphanCheck);
 
+        if (watermark != null) {
+            jobContext.putString(WatermarkContextKeys.PREVIOUS_WATERMARK, watermark.toString());
+        }
+
         if (maxLastEventAt != null) {
             jobContext.putString(WatermarkContextKeys.PROPOSED_WATERMARK, maxLastEventAt.toString());
         }

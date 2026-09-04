@@ -8,6 +8,7 @@ import br.car.dsp_batch.batch.processor.AdministrativeUnitGeoserverProcessor;
 import br.car.dsp_batch.batch.reader.AdministrativeUnitGeoserverReader;
 import br.car.dsp_batch.batch.tasklet.ChangeDetectionTasklet;
 import br.car.dsp_batch.batch.writer.AdministrativeUnitGeoserverWriter;
+import br.car.dsp_batch.geofile.GeoFileRegenerationFlagListener;
 import br.car.dsp_batch.service.AdministrativeUnitPersistenceService;
 import br.car.dsp_batch.sync.SyncStateRepository;
 import br.car.dsp_batch.sync.SyncWatermarkCommitListener;
@@ -50,6 +51,7 @@ public class AdministrativeUnitGeoserverJobFactory {
     private final AdministrativeUnitPersistenceService persistenceService;
     private final SyncStateRepository syncStateRepository;
     private final SyncWatermarkCommitListener syncWatermarkCommitListener;
+    private final GeoFileRegenerationFlagListener geoFileRegenerationFlagListener;
     private final WatermarkChangeDetectionEngine changeDetectionEngine;
     private final TemporalSchemaSupport temporalSchemaSupport;
     private final BatchTemporalProperties batchTemporalProperties;
@@ -62,6 +64,7 @@ public class AdministrativeUnitGeoserverJobFactory {
             AdministrativeUnitPersistenceService persistenceService,
             SyncStateRepository syncStateRepository,
             SyncWatermarkCommitListener syncWatermarkCommitListener,
+            GeoFileRegenerationFlagListener geoFileRegenerationFlagListener,
             WatermarkChangeDetectionEngine changeDetectionEngine,
             TemporalSchemaSupport temporalSchemaSupport,
             BatchTemporalProperties batchTemporalProperties) {
@@ -72,6 +75,7 @@ public class AdministrativeUnitGeoserverJobFactory {
         this.persistenceService = persistenceService;
         this.syncStateRepository = syncStateRepository;
         this.syncWatermarkCommitListener = syncWatermarkCommitListener;
+        this.geoFileRegenerationFlagListener = geoFileRegenerationFlagListener;
         this.changeDetectionEngine = changeDetectionEngine;
         this.temporalSchemaSupport = temporalSchemaSupport;
         this.batchTemporalProperties = batchTemporalProperties;
@@ -90,6 +94,7 @@ public class AdministrativeUnitGeoserverJobFactory {
                 .end()
                 .listener(geoCacheUpdateListener)
                 .listener(syncWatermarkCommitListener)
+                .listener(geoFileRegenerationFlagListener)
                 .build();
     }
 
