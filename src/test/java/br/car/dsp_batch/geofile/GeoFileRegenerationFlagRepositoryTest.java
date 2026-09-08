@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -91,5 +93,38 @@ class GeoFileRegenerationFlagRepositoryTest {
         assertTrue(sql.getAllValues().stream().noneMatch(statement -> statement.contains("created_at >")),
                 sql.getAllValues().toString());
         assertEquals(0, args.getAllValues().get(0).length);
+    }
+
+    @Test
+    void markLevel3TerritoriesAndParents_FlagsLevel3AndItsLevel2() {
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1, 1);
+
+        var result = repository.markLevel3TerritoriesAndParents(
+                List.of("l3-a", "l3-b"),
+                "dsp.territory_level_3",
+                "dsp.territory_level_2");
+
+        assertEquals(1, result.level3Flagged());
+        assertEquals(1, result.level2Flagged());
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, org.mockito.Mockito.times(2))
+                .update(sql.capture(), any(Object[].class));
+        String level3Sql = sql.getAllValues().get(0);
+        String level2Sql = sql.getAllValues().get(1);
+        assertTrue(level3Sql.contains("WHERE id IN (?,?)"), level3Sql);
+        assertTrue(level2Sql.contains("t3.parent_id"), level2Sql);
+    }
+
+    @Test
+    void markLevel3TerritoriesAndParents_SkipsWhenEmpty() {
+        var result = repository.markLevel3TerritoriesAndParents(
+                Set.of(),
+                "dsp.territory_level_3",
+                "dsp.territory_level_2");
+
+        assertEquals(0, result.level3Flagged());
+        assertEquals(0, result.level2Flagged());
+        verify(jdbcTemplate, org.mockito.Mockito.never()).update(anyString(), any(Object[].class));
     }
 }

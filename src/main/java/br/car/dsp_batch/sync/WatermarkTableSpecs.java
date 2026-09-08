@@ -1,5 +1,6 @@
 package br.car.dsp_batch.sync;
 
+import br.car.dsp_batch.aoi.config.AreaOfInterestConfig;
 import br.car.dsp_batch.aoi.metadata.AreaOfInterestTableMetadata;
 import br.car.dsp_batch.batch.config.JobTableConfig;
 import br.car.dsp_batch.layer.metadata.LayerTableMetadata;
@@ -43,7 +44,8 @@ public final class WatermarkTableSpecs {
                 targetPk,
                 targetGeom,
                 tableConfig.getTargetTable(),
-                targetPk
+                targetPk,
+                null
         );
     }
 
@@ -62,7 +64,8 @@ public final class WatermarkTableSpecs {
                 metadata.resolveTargetPrimaryKeyColumn(),
                 metadata.resolveTargetGeometryColumn(),
                 metadata.qualifiedTargetTable(),
-                metadata.resolveTargetPrimaryKeyColumn()
+                metadata.resolveTargetPrimaryKeyColumn(),
+                AreaOfInterestConfig.TERRITORY_LEVEL_3_ID_COLUMN
         );
     }
 
@@ -80,6 +83,7 @@ public final class WatermarkTableSpecs {
                 metadata.qualifiedTargetTable(),
                 metadata.resolveTargetPrimaryKeyColumn(),
                 metadata.resolveTargetGeometryColumn(),
+                null,
                 null,
                 null
         );

@@ -2,6 +2,7 @@ package br.car.dsp_batch.geofile;
 
 import br.car.dsp_batch.aoi.config.AreaOfInterestConfig;
 import br.car.dsp_batch.batch.config.table.AdministrativeUnitTableProperties;
+import br.car.dsp_batch.sync.DepartedLevel3ContextSupport;
 import br.car.dsp_batch.sync.SyncKeys;
 import br.car.dsp_batch.sync.WatermarkContextKeys;
 import org.junit.jupiter.api.Test;
@@ -11,8 +12,10 @@ import org.springframework.batch.core.JobInstance;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.time.Instant;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -47,6 +50,9 @@ class GeoFileRegenerationFlagListenerTest {
         when(repository.markParentsOfChangedAreasOfInterest(
                 anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(new GeoFileRegenerationFlagRepository.AreaOfInterestFlagResult(1, 2));
+        when(repository.markLevel3TerritoriesAndParents(
+                anyCollection(), anyString(), anyString()))
+                .thenReturn(new GeoFileRegenerationFlagRepository.DepartedTerritoryFlagResult(0, 0));
 
         listener().afterJob(execution(BatchStatus.COMPLETED, SyncKeys.AREA_OF_INTEREST, WATERMARK));
 
@@ -56,6 +62,30 @@ class GeoFileRegenerationFlagListenerTest {
                 "dsp.territory_level_3",
                 "dsp.territory_level_2",
                 WATERMARK);
+        verify(repository).markLevel3TerritoriesAndParents(
+                Set.of(),
+                "dsp.territory_level_3",
+                "dsp.territory_level_2");
+    }
+
+    @Test
+    void afterJob_FlagsDepartedLevel3TerritoriesThatLostAreasOfInterest() {
+        when(repository.markParentsOfChangedAreasOfInterest(
+                anyString(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(new GeoFileRegenerationFlagRepository.AreaOfInterestFlagResult(1, 1));
+        when(repository.markLevel3TerritoriesAndParents(
+                anyCollection(), anyString(), anyString()))
+                .thenReturn(new GeoFileRegenerationFlagRepository.DepartedTerritoryFlagResult(1, 1));
+
+        JobExecution jobExecution = execution(BatchStatus.COMPLETED, SyncKeys.AREA_OF_INTEREST, WATERMARK);
+        DepartedLevel3ContextSupport.merge(jobExecution.getExecutionContext(), Set.of("l3-a"));
+
+        listener().afterJob(jobExecution);
+
+        verify(repository).markLevel3TerritoriesAndParents(
+                Set.of("l3-a"),
+                "dsp.territory_level_3",
+                "dsp.territory_level_2");
     }
 
     @Test
@@ -98,6 +128,8 @@ class GeoFileRegenerationFlagListenerTest {
 
         verify(repository, never()).markParentsOfChangedAreasOfInterest(
                 anyString(), anyString(), anyString(), anyString(), eq(WATERMARK));
+        verify(repository, never()).markLevel3TerritoriesAndParents(
+                anyCollection(), anyString(), anyString());
     }
 
     private GeoFileRegenerationFlagListener listener() {

@@ -21,7 +21,12 @@ public record WatermarkTableSpec(
         String geoTargetGeometryColumn,
         /** When null, orphans are removed only from the geo-target. */
         String businessTargetTable,
-        String businessTargetPrimaryKey
+        String businessTargetPrimaryKey,
+        /**
+         * When set, orphan deletion records distinct values of this column (e.g.
+         * {@code territory_level_3_id}) into {@link WatermarkContextKeys#DEPARTED_LEVEL_3_IDS}.
+         */
+        String geoTargetDepartedTerritoryColumn
 ) {
     public String sourceCreationDateColumn() {
         return creationDateColumn.sourceColumn();

@@ -5,6 +5,7 @@ import br.car.dsp_batch.temporal.TemporalType;
 import br.car.dsp_batch.temporal.WatermarkTemporalBridge;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
@@ -51,16 +52,17 @@ public class WatermarkChangeDetectionEngine {
         List<String> deltaBboxes = new ArrayList<>();
         Instant maxLastEventAt = collectDeltaBboxes(sourceJdbc, spec, watermark, deltaBboxes);
 
-        List<String> affectedBboxes = new ArrayList<>(deltaBboxes);
-        if (runOrphanCheck) {
-            log.info("Running orphan check for {}", spec.sourceTable());
-            affectedBboxes.addAll(deleteOrphans(sourceJdbc, geoTargetJdbc, businessTargetJdbc, spec));
-        }
-
         var jobContext = chunkContext.getStepContext()
                 .getStepExecution()
                 .getJobExecution()
                 .getExecutionContext();
+
+        List<String> affectedBboxes = new ArrayList<>(deltaBboxes);
+        if (runOrphanCheck) {
+            log.info("Running orphan check for {}", spec.sourceTable());
+            affectedBboxes.addAll(deleteOrphans(
+                    sourceJdbc, geoTargetJdbc, businessTargetJdbc, spec, jobContext));
+        }
 
         jobContext.putString(WatermarkContextKeys.SYNC_KEY, spec.syncKey());
         jobContext.putString(WatermarkContextKeys.SOURCE_TABLE, spec.sourceTable());
@@ -201,7 +203,8 @@ public class WatermarkChangeDetectionEngine {
     private List<String> deleteOrphans(JdbcTemplate sourceJdbc,
                                        JdbcTemplate geoTargetJdbc,
                                        JdbcTemplate businessTargetJdbc,
-                                       WatermarkTableSpec spec) {
+                                       WatermarkTableSpec spec,
+                                       ExecutionContext jobContext) {
         Set<Object> sourceIds = fetchSourceIds(sourceJdbc, spec);
         TargetIdsAndBboxes geoTarget = fetchTargetIdsAndBboxes(
                 geoTargetJdbc,
@@ -227,6 +230,8 @@ public class WatermarkChangeDetectionEngine {
             }
             log.warn("DELETED orphan: id={}", id);
         }
+
+        captureDepartedTerritoriesFromOrphans(geoTargetJdbc, spec, orphans, jobContext);
 
         deleteRemovedRecords(
                 geoTargetJdbc, spec.geoTargetTable(), spec.geoTargetPrimaryKey(), orphans);
@@ -316,6 +321,39 @@ public class WatermarkChangeDetectionEngine {
 
         int deleted = targetJdbc.update(sql, idsToDelete.toArray());
         log.warn("Deleted {} inactive records from {}: {}", deleted, table, idsToDelete.size());
+    }
+
+    private void captureDepartedTerritoriesFromOrphans(JdbcTemplate geoTargetJdbc,
+                                                       WatermarkTableSpec spec,
+                                                       Set<Object> orphanIds,
+                                                       ExecutionContext jobContext) {
+        String departedColumn = spec.geoTargetDepartedTerritoryColumn();
+        if (departedColumn == null || departedColumn.isBlank() || orphanIds.isEmpty()) {
+            return;
+        }
+
+        String placeholders = orphanIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        String sql = String.format(
+                "SELECT DISTINCT %s FROM %s WHERE %s IN (%s) AND %s IS NOT NULL",
+                departedColumn,
+                spec.geoTargetTable(),
+                spec.geoTargetPrimaryKey(),
+                placeholders,
+                departedColumn);
+
+        Set<String> departedLevel3Ids = new HashSet<>();
+        geoTargetJdbc.query(sql, rs -> {
+            Object value = rs.getObject(1);
+            if (value != null) {
+                departedLevel3Ids.add(value.toString().trim());
+            }
+        }, orphanIds.toArray());
+
+        if (!departedLevel3Ids.isEmpty()) {
+            DepartedLevel3ContextSupport.merge(jobContext, departedLevel3Ids);
+            log.info("Orphan check: {} departed level 3 territor(ies) captured before delete",
+                    departedLevel3Ids.size());
+        }
     }
 
     public Object normalizeId(Object id) {

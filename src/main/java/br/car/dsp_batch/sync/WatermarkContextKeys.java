@@ -17,6 +17,11 @@ public final class WatermarkContextKeys {
     public static final String ORPHAN_CHECK_RAN = "orphanCheckRan";
     public static final String SYNC_KEY = "syncKey";
     public static final String SOURCE_TABLE = "sourceTable";
+    /**
+     * Level 3 territories that lost AOIs during the run (previous {@code territory_level_3_id}
+     * before upsert or orphan delete). Used to flag stale territorial download files.
+     */
+    public static final String DEPARTED_LEVEL_3_IDS = "departedLevel3Ids";
 
     private WatermarkContextKeys() {
     }

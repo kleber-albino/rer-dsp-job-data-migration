@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * Turns {@code requires_s3_file_regeneration} on for the territories a migration run touched,
@@ -83,11 +85,45 @@ public class GeoFileRegenerationFlagRepository {
         return new AreaOfInterestFlagResult(level2Flagged, level3Flagged);
     }
 
+    /**
+     * Flags explicit level 3 territories (e.g. those that lost AOIs) and their level 2 parents.
+     */
+    public DepartedTerritoryFlagResult markLevel3TerritoriesAndParents(
+            Collection<String> level3Ids,
+            String territoryLevel3Table,
+            String territoryLevel2Table) {
+        if (level3Ids == null || level3Ids.isEmpty()) {
+            return new DepartedTerritoryFlagResult(0, 0);
+        }
+
+        String placeholders = level3Ids.stream().map(id -> "?").collect(Collectors.joining(","));
+        Object[] args = level3Ids.toArray();
+
+        int level3Flagged = targetJdbcTemplate.update(
+                "UPDATE " + territoryLevel3Table
+                        + " SET requires_s3_file_regeneration = TRUE"
+                        + " WHERE id IN (" + placeholders + ")",
+                args);
+        int level2Flagged = targetJdbcTemplate.update(
+                "UPDATE " + territoryLevel2Table
+                        + " SET requires_s3_file_regeneration = TRUE"
+                        + " WHERE id IN ("
+                        + "  SELECT DISTINCT t3.parent_id FROM " + territoryLevel3Table + " t3"
+                        + "  WHERE t3.parent_id IS NOT NULL AND t3.id IN (" + placeholders + ")"
+                        + ")",
+                args);
+        return new DepartedTerritoryFlagResult(level2Flagged, level3Flagged);
+    }
+
     private static OffsetDateTime toOffsetDateTime(Instant instant) {
         return instant.atOffset(ZoneOffset.UTC);
     }
 
     /** Rows flagged per level by an AOI run. */
     public record AreaOfInterestFlagResult(int level2Flagged, int level3Flagged) {
+    }
+
+    /** Rows flagged for level 3 territories that lost AOIs during the run. */
+    public record DepartedTerritoryFlagResult(int level2Flagged, int level3Flagged) {
     }
 }

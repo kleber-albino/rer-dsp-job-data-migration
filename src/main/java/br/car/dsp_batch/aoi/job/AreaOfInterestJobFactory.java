@@ -5,6 +5,7 @@ import br.car.dsp_batch.aoi.ddl.AreaOfInterestTableDdlBuilder;
 import br.car.dsp_batch.aoi.introspection.AreaOfInterestIntrospectionService;
 import br.car.dsp_batch.aoi.metadata.AreaOfInterestMetadataRegistry;
 import br.car.dsp_batch.aoi.partitioner.DeferredAreaOfInterestPartitioner;
+import br.car.dsp_batch.aoi.service.AreaOfInterestDepartedTerritoryCollector;
 import br.car.dsp_batch.aoi.tasklet.AreaOfInterestChangeDetectionTasklet;
 import br.car.dsp_batch.aoi.tasklet.AreaOfInterestTableSetupTasklet;
 import br.car.dsp_batch.batch.config.ChangeDecider;
@@ -54,6 +55,7 @@ public class AreaOfInterestJobFactory {
     private final AreaOfInterestTableDdlBuilder ddlBuilder;
     private final AreaOfInterestMetadataRegistry registry;
     private final WatermarkChangeDetectionEngine changeDetectionEngine;
+    private final AreaOfInterestDepartedTerritoryCollector departedTerritoryCollector;
     private final SyncStateRepository syncStateRepository;
     private final SyncWatermarkCommitListener watermarkCommitListener;
     private final GeoFileRegenerationFlagListener geoFileRegenerationFlagListener;
@@ -74,6 +76,7 @@ public class AreaOfInterestJobFactory {
             AreaOfInterestTableDdlBuilder ddlBuilder,
             AreaOfInterestMetadataRegistry registry,
             WatermarkChangeDetectionEngine changeDetectionEngine,
+            AreaOfInterestDepartedTerritoryCollector departedTerritoryCollector,
             SyncStateRepository syncStateRepository,
             SyncWatermarkCommitListener watermarkCommitListener,
             GeoFileRegenerationFlagListener geoFileRegenerationFlagListener,
@@ -92,6 +95,7 @@ public class AreaOfInterestJobFactory {
         this.ddlBuilder = ddlBuilder;
         this.registry = registry;
         this.changeDetectionEngine = changeDetectionEngine;
+        this.departedTerritoryCollector = departedTerritoryCollector;
         this.syncStateRepository = syncStateRepository;
         this.watermarkCommitListener = watermarkCommitListener;
         this.geoFileRegenerationFlagListener = geoFileRegenerationFlagListener;
@@ -147,6 +151,7 @@ public class AreaOfInterestJobFactory {
                         new JdbcTemplate(targetDataSource),
                         new JdbcTemplate(geoTargetDataSource),
                         changeDetectionEngine,
+                        departedTerritoryCollector,
                         registry,
                         syncKey
                 ), transactionManager)
