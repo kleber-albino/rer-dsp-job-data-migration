@@ -75,6 +75,86 @@ class SchemaIntrospectionServiceTest {
     }
 
     @Test
+    void introspect_AllowsUnmappedSourceColumnNamedUpdatedAt() {
+        LayerConfig config = baseConfig();
+        config.setUpdatedAtColumn("alteration_date");
+        config.setAdditionalColumns(List.of("distancia_m"));
+        config.setSrid(4674);
+
+        stubTableExists();
+        stubColumns(
+                column("source_pk", "int8", false),
+                column("conservation_unit_id", "int8", false),
+                column("nome", "varchar", false),
+                column("data_criacao", "timestamptz", false),
+                column("alteration_date", "timestamptz", false),
+                column("updated_at", "timestamptz", false),
+                column("distancia_m", "numeric", false),
+                column("the_geom", "geometry", true)
+        );
+        stubGeometryColumnLookup("the_geom", 4674, "MULTILINESTRING");
+        stubEmptyIndexes();
+
+        LayerTableMetadata metadata = service.introspect(jdbc, config);
+
+        assertEquals("alteration_date", metadata.updatedAtSourceColumn());
+        assertEquals("updated_at", metadata.resolveTargetUpdatedAtColumn());
+        assertFalse(metadata.columns().stream().anyMatch(c -> "updated_at".equals(c.name())));
+    }
+
+    @Test
+    void introspect_RejectsUpdatedAtInAdditionalColumns() {
+        LayerConfig config = baseConfig();
+        config.setUpdatedAtColumn("alteration_date");
+        config.setAdditionalColumns(List.of("updated_at"));
+        config.setSrid(4674);
+
+        stubTableExists();
+        stubColumns(
+                column("source_pk", "int8", false),
+                column("conservation_unit_id", "int8", false),
+                column("nome", "varchar", false),
+                column("data_criacao", "timestamptz", false),
+                column("alteration_date", "timestamptz", false),
+                column("updated_at", "timestamptz", false),
+                column("the_geom", "geometry", true)
+        );
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.introspect(jdbc, config)
+        );
+        assertTrue(ex.getMessage().contains("additional-columns"));
+        assertTrue(ex.getMessage().contains("updated_at"));
+    }
+
+    @Test
+    void introspect_AllowsUnmappedSourceColumnNamedGeom() {
+        LayerConfig config = baseConfig();
+        config.setGeometryColumn("the_geom");
+        config.setSrid(4674);
+
+        stubTableExists();
+        stubColumns(
+                column("source_pk", "int8", false),
+                column("conservation_unit_id", "int8", false),
+                column("nome", "varchar", false),
+                column("data_criacao", "timestamptz", false),
+                column("data_atualizacao", "timestamptz", false),
+                column("geom", "varchar", false),
+                column("the_geom", "geometry", true)
+        );
+        stubGeometryColumnLookup("the_geom", 4674, "MULTILINESTRING");
+        stubEmptyIndexes();
+
+        LayerTableMetadata metadata = service.introspect(jdbc, config);
+
+        assertEquals("the_geom", metadata.geometryColumn());
+        assertEquals("geom", metadata.resolveTargetGeometryColumn());
+        assertFalse(metadata.columns().stream().anyMatch(c -> "geom".equals(c.name())));
+    }
+
+    @Test
     void introspect_HonorsGeometryColumnAndMapsToGeom() {
         LayerConfig config = baseConfig();
         config.setSrid(4674);

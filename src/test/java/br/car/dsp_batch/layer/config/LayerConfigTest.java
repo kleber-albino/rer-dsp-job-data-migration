@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class LayerConfigTest {
 
     @Test
-    void resolveTargetTable_UsesDspSchemaAndSourceTableName() {
+    void resolveTargetTable_WithoutLayerName_UsesSourceTableName() {
         LayerConfig config = new LayerConfig();
         config.setSourceTable("usr_geocar_aplicacao.parcelas_rurais");
 
@@ -19,7 +19,17 @@ class LayerConfigTest {
     }
 
     @Test
-    void resolveKey_DerivesFromTargetTableName() {
+    void resolveTargetTable_WithLayerName_UsesNormalizedLayerName() {
+        LayerConfig config = new LayerConfig();
+        config.setSourceTable("public.features");
+        config.setLayerName("tipo-a");
+
+        assertEquals("dsp.tipo_a", config.resolveTargetTable().qualified());
+        assertEquals("dsp_tipo_a", config.resolveKey());
+    }
+
+    @Test
+    void resolveKey_DerivesFromPhysicalLayerName() {
         LayerConfig config = new LayerConfig();
         config.setSourceTable("source_schema.example_features");
 

@@ -78,20 +78,72 @@ class LayersPropertiesTest {
     }
 
     @Test
-    void validate_RejectsDuplicateTargetTableNames() {
+    void validate_AcceptsSharedSourceWithDistinctLayerNames() {
         LayersProperties properties = new LayersProperties();
 
         LayerConfig first = validLayer();
-        first.setSourceTable("schema_a.mesma");
+        first.setSourceTable("public.features");
+        first.setLayerName("tipo-a");
 
         LayerConfig second = validLayer();
-        second.setSourceTable("schema_b.mesma");
+        second.setSourceTable("public.features");
+        second.setLayerName("tipo-b");
+
+        properties.getLayers().add(first);
+        properties.getLayers().add(second);
+
+        assertDoesNotThrow(properties::validate);
+    }
+
+    @Test
+    void validate_RejectsDuplicatePhysicalDestination() {
+        LayersProperties properties = new LayersProperties();
+
+        LayerConfig first = validLayer();
+        first.setSourceTable("public.features");
+        first.setLayerName("tipo-a");
+
+        LayerConfig second = validLayer();
+        second.setSourceTable("public.features");
+        second.setLayerName("tipo_a");
 
         properties.getLayers().add(first);
         properties.getLayers().add(second);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
         assertTrue(ex.getMessage().contains("Duplicate target table"));
+        assertTrue(ex.getMessage().contains("dsp.tipo_a"));
+        assertTrue(!ex.getMessage().contains("source-table"));
+    }
+
+    @Test
+    void validate_RejectsReservedPhysicalDestination() {
+        LayerConfig layer = validLayer();
+        layer.setLayerName("territory_level_1");
+        LayersProperties properties = propertiesWith(layer);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
+        assertTrue(ex.getMessage().contains("reserved"));
+    }
+
+    @Test
+    void validate_RejectsSameLayerNameFromDifferentSources() {
+        LayersProperties properties = new LayersProperties();
+
+        LayerConfig first = validLayer();
+        first.setSourceTable("public.one");
+        first.setLayerName("rios");
+
+        LayerConfig second = validLayer();
+        second.setSourceTable("public.two");
+        second.setLayerName("rios");
+
+        properties.getLayers().add(first);
+        properties.getLayers().add(second);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, properties::validate);
+        assertTrue(ex.getMessage().contains("Duplicate target table"));
+        assertTrue(ex.getMessage().contains("dsp.rios"));
     }
 
     private static LayersProperties propertiesWith(LayerConfig layer) {

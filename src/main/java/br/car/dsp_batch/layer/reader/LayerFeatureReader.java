@@ -54,10 +54,14 @@ public class LayerFeatureReader extends AbstractPartitionedPagingItemReader<Laye
             selectColumns = selectColumns + ", " + partitionColumn;
         }
 
+        int srid = metadata.srid();
+        String transformedGeom = GeometrySql.transform(geom, srid);
+
         PostgresPagingQueryProvider queryProvider = new PostgresPagingQueryProvider();
         queryProvider.setSelectClause(
                 "SELECT " + selectColumns
-                        + ", " + GeometrySql.asGeoJsonText2d(geom) + " AS geometry_geo_json"
+                        + ", " + GeometrySql.asGeoJsonText2d(transformedGeom)
+                        + " AS geometry_geo_json"
         );
         queryProvider.setFromClause("FROM " + metadata.qualifiedSourceTable());
 

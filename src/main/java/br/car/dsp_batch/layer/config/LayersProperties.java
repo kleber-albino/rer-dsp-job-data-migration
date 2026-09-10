@@ -25,16 +25,26 @@ public class LayersProperties {
                 .toList();
     }
 
+    public static final Set<String> RESERVED_PHYSICAL_TABLES = Set.of(
+            "territory_level_1",
+            "territory_level_2",
+            "territory_level_3",
+            "area_of_interest"
+    );
+
     public void validate() {
         Set<String> keys = new HashSet<>();
         for (LayerConfig layer : layers) {
             layer.validate();
-            String key = layer.resolveKey();
-            if (!keys.add(key)) {
+            String physical = layer.physicalTableName();
+            if (RESERVED_PHYSICAL_TABLES.contains(physical)) {
                 throw new IllegalStateException(
-                        "Duplicate target table 'dsp."
-                                + layer.resolveSourceTable().table()
-                                + "' for batch.layers (same table name from different sources)");
+                        "Target table 'dsp." + physical
+                                + "' is reserved for a fixed migration");
+            }
+            if (!keys.add(layer.resolveKey())) {
+                throw new IllegalStateException(
+                        "Duplicate target table 'dsp." + physical + "' for batch.layers");
             }
         }
     }

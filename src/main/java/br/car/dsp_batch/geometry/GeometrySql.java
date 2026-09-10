@@ -32,6 +32,17 @@ public final class GeometrySql {
     }
 
     /**
+     * Reprojects the geometry to the target SRID (same contract for UA, AOI, and layers).
+     */
+    public static String transform(String geometryExpression, int srid) {
+        requireGeometryExpression(geometryExpression);
+        if (srid <= 0) {
+            throw new IllegalArgumentException("srid must be a positive integer");
+        }
+        return "public.ST_Transform(" + geometryExpression + ", " + srid + ")";
+    }
+
+    /**
      * GeoJSON text of a 2D geometry (Z/M dropped).
      */
     public static String asGeoJsonText2d(String geometryExpression) {

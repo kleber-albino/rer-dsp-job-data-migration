@@ -54,7 +54,7 @@ public class AreaOfInterestReader extends AbstractPartitionedPagingItemReader<La
         }
 
         int srid = metadata.srid();
-        String transformedGeom = "public.ST_Transform(" + geom + ", " + srid + ")";
+        String transformedGeom = GeometrySql.transform(geom, srid);
 
         PostgresPagingQueryProvider queryProvider = new PostgresPagingQueryProvider();
         queryProvider.setSelectClause(

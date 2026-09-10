@@ -12,7 +12,8 @@ import java.util.Set;
 /**
  * Configuration for a geographic layer (source table) to migrate.
  * Each row in the source table is a feature.
- * Target table is always {@code dsp.<source-table-name>} on geo-target.
+ * Target table is {@code dsp.<physical-layer-name>} on geo-target
+ * (resolved {@code layer-name}, hyphens become underscores).
  *
  * <p>Mandatory source columns are mapped to fixed target names
  * ({@code id}, {@code area_of_interest_id}, {@code created_at}, {@code geom}).
@@ -89,13 +90,16 @@ public class LayerConfig {
         return QualifiedTable.parse(sourceTable);
     }
 
+    public String physicalTableName() {
+        return resolveLayerName().replace('-', '_');
+    }
+
     public QualifiedTable resolveTargetTable() {
-        QualifiedTable source = resolveSourceTable();
-        return new QualifiedTable(TARGET_SCHEMA, source.table());
+        return new QualifiedTable(TARGET_SCHEMA, physicalTableName());
     }
 
     public String resolveKey() {
-        return TARGET_SCHEMA + "_" + resolveSourceTable().table();
+        return TARGET_SCHEMA + "_" + physicalTableName();
     }
 
     public String resolveLayerName() {

@@ -20,5 +20,16 @@ class QualifiedTableTest {
     void parse_RejectsInvalidFormat() {
         assertThrows(IllegalArgumentException.class, () -> QualifiedTable.parse("sem_schema"));
         assertThrows(IllegalArgumentException.class, () -> QualifiedTable.parse(""));
+        assertThrows(IllegalArgumentException.class, () -> QualifiedTable.parse(".tabela"));
+        assertThrows(IllegalArgumentException.class, () -> QualifiedTable.parse("schema."));
+    }
+
+    @Test
+    void parse_RejectsMoreThanOneDot() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> QualifiedTable.parse("foo.bar.baz")
+        );
+        assertEquals("Expected schema.table (exactly one '.'), got: foo.bar.baz", ex.getMessage());
     }
 }

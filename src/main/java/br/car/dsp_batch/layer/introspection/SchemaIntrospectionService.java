@@ -98,9 +98,7 @@ public class SchemaIntrospectionService {
         List<String> additionalColumns = normalizeAdditionalColumns(config.getAdditionalColumns());
         validateAdditionalColumnsExist(allColumns, additionalColumns);
         validateAdditionalColumnsTemporalTypes(allColumns, additionalColumns);
-        rejectCanonicalTargetNameCollisions(source, allColumns, primaryKey, areaOfInterestIdColumn,
-                creationDateColumnName, updatedAtColumnName, labelColumn, geometryInfo.columnName(),
-                additionalColumns);
+        rejectCanonicalTargetNameCollisions(source, additionalColumns);
 
         warnIfHigherDimensional(source, geometryInfo);
         int srid = resolveSrid(sourceJdbc, source, geometryInfo, config.getSrid());
@@ -323,47 +321,12 @@ public class SchemaIntrospectionService {
     }
 
     /**
-     * Rejects source attributes that would collide with canonical target names
-     * when those attributes are not themselves the mapped source for that role.
+     * Rejects extras whose target name collides with a canonical column
+     * ({@code id}, {@code geom}, {@code updated_at}, etc.).
+     * An unmapped source column with the same name is ignored.
      */
     private void rejectCanonicalTargetNameCollisions(QualifiedTable table,
-                                                     List<ColumnMetadata> allColumns,
-                                                     String primaryKey,
-                                                     String areaOfInterestIdColumn,
-                                                     String creationDateColumn,
-                                                     String updatedAtColumn,
-                                                     String labelColumn,
-                                                     String geometryColumn,
                                                      List<String> additionalColumns) {
-        rejectReservedNameCollision(table, allColumns, ID_COLUMN, primaryKey, "primary-key");
-        rejectReservedNameCollision(
-                table, allColumns, AREA_OF_INTEREST_ID_COLUMN, areaOfInterestIdColumn,
-                "area-of-interest-id-column");
-        rejectReservedNameCollision(
-                table, allColumns, CREATED_AT_COLUMN, creationDateColumn, "creation-date-column");
-        if (updatedAtColumn != null) {
-            rejectReservedNameCollision(
-                    table, allColumns, UPDATED_AT_COLUMN, updatedAtColumn, "updated-at-column");
-        }
-        if (labelColumn != null) {
-            rejectReservedNameCollision(
-                    table, allColumns, LABEL_COLUMN, labelColumn, "label-column");
-        }
-        rejectGeomNameCollision(table, allColumns, geometryColumn);
-
-        Set<String> migrated = new LinkedHashSet<>();
-        migrated.add(primaryKey);
-        migrated.add(areaOfInterestIdColumn);
-        migrated.add(creationDateColumn);
-        if (updatedAtColumn != null) {
-            migrated.add(updatedAtColumn);
-        }
-        if (labelColumn != null) {
-            migrated.add(labelColumn);
-        }
-        migrated.add(geometryColumn);
-        migrated.addAll(additionalColumns);
-
         for (String additionalColumn : additionalColumns) {
             if (LayerConfig.CANONICAL_TARGET_COLUMNS.contains(additionalColumn)) {
                 throw new IllegalStateException(
@@ -371,53 +334,6 @@ public class SchemaIntrospectionService {
                                 + "' collides with a canonical target column on "
                                 + table.qualified() + ".");
             }
-        }
-
-        Set<String> mappedTargets = Set.of(
-                ID_COLUMN,
-                AREA_OF_INTEREST_ID_COLUMN,
-                CREATED_AT_COLUMN,
-                UPDATED_AT_COLUMN,
-                LABEL_COLUMN,
-                GEOMETRY_COLUMN
-        );
-        for (String sourceName : migrated) {
-            boolean isCanonicalSource = sourceName.equals(primaryKey)
-                    || sourceName.equals(areaOfInterestIdColumn)
-                    || sourceName.equals(creationDateColumn)
-                    || sourceName.equals(updatedAtColumn)
-                    || sourceName.equals(labelColumn)
-                    || sourceName.equals(geometryColumn);
-            if (isCanonicalSource) {
-                continue;
-            }
-            if (mappedTargets.contains(sourceName)) {
-                throw new IllegalStateException(
-                        "Table " + table.qualified()
-                                + " cannot migrate extra column '" + sourceName
-                                + "' because that name is reserved for a canonical target column.");
-            }
-        }
-    }
-
-    private void rejectReservedNameCollision(QualifiedTable table,
-                                             List<ColumnMetadata> columns,
-                                             String reservedTargetName,
-                                             String mappedSourceColumn,
-                                             String configField) {
-        if (reservedTargetName.equals(mappedSourceColumn)) {
-            return;
-        }
-        boolean conflict = columns.stream()
-                .anyMatch(column -> reservedTargetName.equals(column.name()));
-        if (conflict) {
-            throw new IllegalStateException(
-                    "Table " + table.qualified()
-                            + " has a column named '" + reservedTargetName
-                            + "' while " + configField + " is '" + mappedSourceColumn
-                            + "'. Rename that attribute on the source, or set " + configField + ": "
-                            + reservedTargetName + " if that is the column to migrate "
-                            + "(destination column is always '" + reservedTargetName + "').");
         }
     }
 
@@ -469,25 +385,6 @@ public class SchemaIntrospectionService {
                     "geometry-column '" + name + "' exists but is not geometry/geography. "
                             + "Set batch.layers.geometry-column to a PostGIS geometry column "
                             + "(it will be stored as '" + GEOMETRY_COLUMN + "' on geo-target).");
-        }
-    }
-
-    private void rejectGeomNameCollision(QualifiedTable table,
-                                         List<ColumnMetadata> columns,
-                                         String geometryColumnName) {
-        if (GEOMETRY_COLUMN.equals(geometryColumnName)) {
-            return;
-        }
-        boolean conflict = columns.stream()
-                .anyMatch(column -> !column.geometry() && GEOMETRY_COLUMN.equals(column.name()));
-        if (conflict) {
-            throw new IllegalStateException(
-                    "Table " + table.qualified()
-                            + " has a non-geometry column named '" + GEOMETRY_COLUMN
-                            + "' while the geometry to migrate is '" + geometryColumnName
-                            + "'. Rename that attribute on the source, or set geometry-column: "
-                            + GEOMETRY_COLUMN + " if that is the column to migrate "
-                            + "(destination geometry is always '" + GEOMETRY_COLUMN + "').");
         }
     }
 
