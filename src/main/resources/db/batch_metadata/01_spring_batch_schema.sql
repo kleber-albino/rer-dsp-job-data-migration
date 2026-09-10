@@ -1,12 +1,14 @@
--- Aplicar no banco de destino (o mesmo de spring.datasource.target), não em um banco separado.
--- Ex.: psql -h localhost -p 5432 -U target_user -d target_geo_db -f 01_spring_batch_schema.sql
+-- Apply on the destination database (same as spring.datasource.target), not a separate database.
+-- Example: psql -h localhost -p 5432 -U target_user -d target_geo_db -f 01_spring_batch_schema.sql
 --
--- Spring Batch 5.2.x + SYNC_STATE no schema data_migration (PostgreSQL).
--- Obrigatório porque spring.batch.jdbc.initialize-schema=never.
+-- Spring Batch 5.2.x + SYNC_STATE in schema data_migration (PostgreSQL).
+-- Exclusive to rer-dsp-job-data-migration. The geo-file job uses schema
+-- geo_file_generation (see 03_geo_file_generation_batch.sql).
+-- The job uses spring.batch.jdbc.initialize-schema=never.
 --
--- Uma cópia deste arquivo também vive em rer-dsp-core em
--- config/db/dsp-db/02_data_migration_batch.sql (init Docker do dsp-db).
--- As duas cópias precisam ficar iguais.
+-- A copy of this file also lives in rer-dsp-core at
+-- config/db/dsp-db/02_data_migration_batch.sql (dsp-db Docker init).
+-- Keep both copies in sync.
 
 CREATE SCHEMA IF NOT EXISTS data_migration;
 
