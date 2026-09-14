@@ -80,7 +80,6 @@ class AreaOfInterestDepartedTerritoryCollectorTest {
                 4326,
                 List.of(new ColumnMetadata("osm_id", "int8", null, null, null, false, false)),
                 List.of(),
-                List.of(),
                 "1=1"
         );
     }
