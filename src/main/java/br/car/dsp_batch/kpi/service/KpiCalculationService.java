@@ -62,7 +62,7 @@ public class KpiCalculationService {
         }
 
         String geomColumn = AreaOfInterestConfig.GEOMETRY_COLUMN;
-        String areaExpr = "public.ST_Area(" + GeometrySql.force2d(quote(geomColumn)) + "::geography)";
+        String areaExpr = GeometrySql.areaGeographySquareMetres(quote(geomColumn));
 
         List<Map<String, Object>> rows = geoTargetJdbcTemplate.queryForList(
                 "SELECT " + quote("id") + " AS id, " + areaExpr + " AS area_m2 "
@@ -102,19 +102,21 @@ public class KpiCalculationService {
 
     private void persistThemeMeasures(ThemeKpiConfig theme) {
         String layerName = theme.resolveLayerName();
-        QualifiedTable layerTable = new QualifiedTable(LayerConfig.TARGET_SCHEMA, layerName);
+        LayerConfig layerRef = new LayerConfig();
+        layerRef.setLayerName(layerName);
+        QualifiedTable layerTable = layerRef.resolveTargetTable();
 
         if (!schemaIntrospectionService.tableExists(geoTargetJdbcTemplate, layerTable)) {
             throw new IllegalStateException(
-                    "Geo-target layer table " + layerTable.qualified()
-                            + " not found for KPI '" + layerName
-                            + "'. Run layer migration first or disable the KPI.");
+                    "Geo-target table " + layerTable.qualified()
+                            + " not found for KPI layer-name '" + layerName
+                            + "'. Ensure batch.layers migration created the layer table or disable the KPI.");
         }
 
         String geomColumn = LayerConfig.GEOMETRY_COLUMN;
         String aoiColumn = LayerConfig.AREA_OF_INTEREST_ID_COLUMN;
-        String areaExpr = "COALESCE(SUM(public.ST_Area("
-                + GeometrySql.force2d(quote(geomColumn)) + "::geography)), 0)";
+        String areaExpr = "COALESCE(SUM("
+                + GeometrySql.areaGeographySquareMetres(quote(geomColumn)) + "), 0)";
 
         List<Map<String, Object>> rows = geoTargetJdbcTemplate.queryForList(
                 "SELECT " + quote(aoiColumn) + " AS area_of_interest_id, " + areaExpr + " AS area_m2 "

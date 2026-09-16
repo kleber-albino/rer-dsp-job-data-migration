@@ -46,9 +46,10 @@ COPY --from=dsp_config docker/select-runtime-config.sh /tmp/select-runtime-confi
 COPY --from=dsp_config Job-Data-Migration/application/ /tmp/migration-app/
 COPY --from=dsp_config Job-Data-Migration/docker/entrypoint.sh /migration-entrypoint.sh
 COPY --from=dsp_config Job-Data-Migration/docker/publish_geoservers.sh /publish-geoservers.sh
+COPY --from=dsp_config Job-Data-Migration/docker/mark_first_data_load_ready.sh /mark_first_data_load_ready.sh
 COPY --from=dsp_config GeoserverExhibition/docker/populate_geoserver.sh /opt/populate_geoserver.sh
 COPY --from=dsp_config map/ /tmp/map/
-RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /opt/populate_geoserver.sh \
+RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /mark_first_data_load_ready.sh /opt/populate_geoserver.sh \
     && mkdir -p /config \
     && /tmp/select-runtime-config.sh pick /tmp/migration-app application.yaml /config/application.yaml \
     && /tmp/select-runtime-config.sh pick /tmp/map mapLayersConfig.json /config/mapLayersConfig.json \
