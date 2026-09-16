@@ -29,6 +29,14 @@ class LayerConfigTest {
     }
 
     @Test
+    void resolveTargetTable_WithHyphenatedAdopterLayerName_MapsToUnderscoreTable() {
+        LayerConfig config = new LayerConfig();
+        config.setLayerName("zona-seguranca-300m");
+
+        assertEquals("dsp.zona_seguranca_300m", config.resolveTargetTable().qualified());
+    }
+
+    @Test
     void resolveKey_DerivesFromPhysicalLayerName() {
         LayerConfig config = new LayerConfig();
         config.setSourceTable("source_schema.example_features");

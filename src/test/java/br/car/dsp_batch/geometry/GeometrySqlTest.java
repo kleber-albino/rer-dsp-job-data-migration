@@ -51,6 +51,14 @@ class GeometrySqlTest {
     }
 
     @Test
+    void areaGeographySquareMetres_TransformsToWgs84BeforeGeographyCast() {
+        assertEquals(
+                "public.ST_Area(public.ST_Transform(ST_Force2D(\"geom\"), 4326)::geography)",
+                GeometrySql.areaGeographySquareMetres("\"geom\"")
+        );
+    }
+
+    @Test
     void asGeoJsonText2d_Forces2dBeforeGeoJson() {
         String sql = GeometrySql.asGeoJsonText2d("geom");
 
