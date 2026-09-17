@@ -1,44 +1,44 @@
 # rer-dsp-job-data-migration
 
-> Este repositório é um dos módulos do **DSP (Data Sharing Platform)**, parte do ecossistema RER.
-> A documentação completa do projeto está em **[rer-dsp-docs](https://github.com/Rural-Environmental-Registry/rer-dsp-docs)**.
-> As informações abaixo tratam apenas deste módulo, não do projeto DSP como um todo.
+> This repository is one module of the **DSP (Data Sharing Platform)**, part of the RER ecosystem.
+> Full project documentation lives in **[rer-dsp-docs](https://github.com/Rural-Environmental-Registry/rer-dsp-docs)**.
+> The information below covers this module only, not the DSP project as a whole.
 
-## Qual parte do DSP este módulo é
+## Where this module fits in the DSP
 
 ```mermaid
 flowchart LR
-    Source[(Banco de origem do adotante)]
+    Source[(Adopter source database)]
     Job((rer-dsp-job-data-migration))
     Target[(dsp-db / geo-target)]
 
-    Source -- extração --> Job
-    Job -- carga --> Target
+    Source -- extract --> Job
+    Job -- load --> Target
 ```
 
-## Objetivo
+## Purpose
 
-ETL baseado em Spring Batch que migra dados geoespaciais do banco de origem do adotante
-para os bancos do DSP.
+Spring Batch–based ETL that migrates geospatial data from the adopter's source database
+into the DSP databases.
 
-## Responsabilidades
+## Responsibilities
 
-- Extrair dados geoespaciais da fonte do adotante
-- Transformar e validar as feições migradas
-- Carregar (UPSERT) os dados nos bancos do DSP (`target` e `geo-target`)
+- Extract geospatial data from the adopter source
+- Transform and validate migrated features
+- Load (UPSERT) data into DSP databases (`target` and `geo-target`)
 
-## Tecnologias
+## Technologies
 
 Java 21, Spring Boot 3.4.2, Spring Batch, PostgreSQL/PostGIS, Maven.
 
-## Como executar
+## How to run
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Ou, preferencialmente, via `rer-dsp-core` (`./setup.sh`), que orquestra a stack completa.
+Or, preferably, via `rer-dsp-core` (`./setup.sh`), which orchestrates the full stack.
 
-## Licença
+## License
 
 [GNU General Public License v3.0](LICENSE)
