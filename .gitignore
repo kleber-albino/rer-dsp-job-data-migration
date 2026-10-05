@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+/temp/*
+
+# Perfis Spring locais de desenvolvimento
+src/main/resources/application-hidro.yaml
+src/main/resources/application-portugal.yaml

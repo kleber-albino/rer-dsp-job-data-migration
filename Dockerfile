@@ -1,7 +1,7 @@
 # =============================================================================
 # RER DSP — job-data-migration (dsp-batch)
 # Primary context: this repository root.
-# Extra dsp_config context: rer-dsp-core/config (Compose additional_contexts)
+# Optional dsp_core_infra context: rer-dsp-core/config (populate_geoserver.sh only)
 # =============================================================================
 
 FROM eclipse-temurin:21-jdk-jammy AS build
@@ -42,13 +42,13 @@ RUN apt-get update && apt-get upgrade -y \
 
 COPY --from=build /app/target/dsp-batch-*.jar /app/app.jar
 
-COPY --from=dsp_config docker/select-runtime-config.sh /tmp/select-runtime-config.sh
-COPY --from=dsp_config Job-Data-Migration/application/ /tmp/migration-app/
-COPY --from=dsp_config Job-Data-Migration/docker/entrypoint.sh /migration-entrypoint.sh
-COPY --from=dsp_config Job-Data-Migration/docker/publish_geoservers.sh /publish-geoservers.sh
-COPY --from=dsp_config Job-Data-Migration/docker/mark_first_data_load_ready.sh /mark_first_data_load_ready.sh
-COPY --from=dsp_config GeoserverExhibition/docker/populate_geoserver.sh /opt/populate_geoserver.sh
-COPY --from=dsp_config map/ /tmp/map/
+COPY config/docker/select-runtime-config.sh /tmp/select-runtime-config.sh
+COPY config/application/ /tmp/migration-app/
+COPY config/docker/entrypoint.sh /migration-entrypoint.sh
+COPY config/docker/publish_geoservers.sh /publish-geoservers.sh
+COPY config/docker/mark_first_data_load_ready.sh /mark_first_data_load_ready.sh
+COPY --from=dsp_core_infra GeoserverExhibition/docker/populate_geoserver.sh /opt/populate_geoserver.sh
+COPY config/map/ /tmp/map/
 RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /mark_first_data_load_ready.sh /opt/populate_geoserver.sh \
     && mkdir -p /config \
     && /tmp/select-runtime-config.sh pick /tmp/migration-app application.yaml /config/application.yaml \
