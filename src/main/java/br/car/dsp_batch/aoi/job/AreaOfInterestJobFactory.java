@@ -2,6 +2,7 @@ package br.car.dsp_batch.aoi.job;
 
 import br.car.dsp_batch.aoi.config.AreaOfInterestConfig;
 import br.car.dsp_batch.aoi.ddl.AreaOfInterestTableDdlBuilder;
+import br.car.dsp_batch.aoi.ddl.AreaOfInterestTargetSchemaAligner;
 import br.car.dsp_batch.aoi.introspection.AreaOfInterestIntrospectionService;
 import br.car.dsp_batch.aoi.metadata.AreaOfInterestMetadataRegistry;
 import br.car.dsp_batch.aoi.partitioner.DeferredAreaOfInterestPartitioner;
@@ -53,6 +54,7 @@ public class AreaOfInterestJobFactory {
     private final DataSource geoTargetDataSource;
     private final AreaOfInterestIntrospectionService introspectionService;
     private final AreaOfInterestTableDdlBuilder ddlBuilder;
+    private final AreaOfInterestTargetSchemaAligner schemaAligner;
     private final AreaOfInterestMetadataRegistry registry;
     private final WatermarkChangeDetectionEngine changeDetectionEngine;
     private final AreaOfInterestDepartedTerritoryCollector departedTerritoryCollector;
@@ -74,6 +76,7 @@ public class AreaOfInterestJobFactory {
             @Qualifier("geoTargetDataSource") DataSource geoTargetDataSource,
             AreaOfInterestIntrospectionService introspectionService,
             AreaOfInterestTableDdlBuilder ddlBuilder,
+            AreaOfInterestTargetSchemaAligner schemaAligner,
             AreaOfInterestMetadataRegistry registry,
             WatermarkChangeDetectionEngine changeDetectionEngine,
             AreaOfInterestDepartedTerritoryCollector departedTerritoryCollector,
@@ -93,6 +96,7 @@ public class AreaOfInterestJobFactory {
         this.geoTargetDataSource = geoTargetDataSource;
         this.introspectionService = introspectionService;
         this.ddlBuilder = ddlBuilder;
+        this.schemaAligner = schemaAligner;
         this.registry = registry;
         this.changeDetectionEngine = changeDetectionEngine;
         this.departedTerritoryCollector = departedTerritoryCollector;
@@ -137,6 +141,7 @@ public class AreaOfInterestJobFactory {
                         new JdbcTemplate(geoTargetDataSource),
                         introspectionService,
                         ddlBuilder,
+                        schemaAligner,
                         registry,
                         config,
                         JOB_NAME

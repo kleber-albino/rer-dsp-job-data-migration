@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Builds CREATE TABLE and index DDL for AOI on geo-target and business target.
@@ -29,9 +30,49 @@ public class AreaOfInterestTableDdlBuilder {
         this.typeMapper = typeMapper;
     }
 
+    public List<DdlColumnDefinition> expectedBusinessColumns(AreaOfInterestTableMetadata metadata) {
+        List<DdlColumnDefinition> columns = collectColumnDefinitions(metadata, false, true);
+        if (!containsColumn(columns, AreaOfInterestConfig.AREA_COLUMN)
+                && metadata.totalAreaSourceColumn() == null) {
+            columns.add(new DdlColumnDefinition(AreaOfInterestConfig.AREA_COLUMN, "numeric"));
+        }
+        if (!containsColumn(columns, AreaOfInterestConfig.UPDATED_AT_COLUMN)) {
+            columns.add(new DdlColumnDefinition(AreaOfInterestConfig.UPDATED_AT_COLUMN, "timestamptz"));
+        }
+        columns.add(new DdlColumnDefinition(
+                BOUNDARY_BOX_COLUMN, "geometry(Polygon, " + metadata.srid() + ")"));
+        columns.add(new DdlColumnDefinition(
+                CENTROID_COLUMN, "geometry(Point, " + metadata.srid() + ")"));
+        return dedupeColumns(columns);
+    }
+
+    public List<DdlColumnDefinition> expectedGeoColumns(AreaOfInterestTableMetadata metadata) {
+        return collectColumnDefinitions(metadata, true, false);
+    }
+
     public List<String> buildGeoTargetStatements(AreaOfInterestTableMetadata metadata) {
         List<String> statements = new ArrayList<>();
         statements.add(buildGeoCreateTable(metadata));
+        statements.addAll(buildGeoIndexStatements(metadata));
+        return statements;
+    }
+
+    public List<String> buildBusinessTargetStatements(AreaOfInterestTableMetadata metadata) {
+        List<String> statements = new ArrayList<>();
+        statements.add(buildBusinessCreateTable(metadata));
+        statements.addAll(buildBusinessIndexStatements(metadata));
+        return statements;
+    }
+
+    public List<String> buildBusinessIndexStatements(AreaOfInterestTableMetadata metadata) {
+        List<String> statements = new ArrayList<>();
+        statements.add(buildBusinessUpdatedAtIndex(metadata));
+        statements.add(buildBusinessCreatedAtIndex(metadata));
+        return statements;
+    }
+
+    public List<String> buildGeoIndexStatements(AreaOfInterestTableMetadata metadata) {
+        List<String> statements = new ArrayList<>();
         statements.add(buildGeometryIndex(metadata));
         statements.add(buildCreatedAtIndex(metadata));
         if (metadata.hasUpdatedAtColumn()) {
@@ -41,16 +82,8 @@ public class AreaOfInterestTableDdlBuilder {
         return statements;
     }
 
-    public List<String> buildBusinessTargetStatements(AreaOfInterestTableMetadata metadata) {
-        List<String> statements = new ArrayList<>();
-        statements.add(buildBusinessCreateTable(metadata));
-        statements.add(buildBusinessUpdatedAtIndex(metadata));
-        statements.add(buildBusinessCreatedAtIndex(metadata));
-        return statements;
-    }
-
     public String buildGeoCreateTable(AreaOfInterestTableMetadata metadata) {
-        List<String> columnDefinitions = buildColumnDefinitions(metadata, true, false);
+        List<String> columnDefinitions = formatColumnDefinitions(expectedGeoColumns(metadata));
         String targetPk = metadata.resolveTargetPrimaryKeyColumn();
         columnDefinitions.add("PRIMARY KEY (" + quote(targetPk) + ")");
 
@@ -61,9 +94,7 @@ public class AreaOfInterestTableDdlBuilder {
     }
 
     public String buildBusinessCreateTable(AreaOfInterestTableMetadata metadata) {
-        List<String> columnDefinitions = buildColumnDefinitions(metadata, false, true);
-        columnDefinitions.add(quote(BOUNDARY_BOX_COLUMN) + " geometry(Polygon, " + metadata.srid() + ")");
-        columnDefinitions.add(quote(CENTROID_COLUMN) + " geometry(Point, " + metadata.srid() + ")");
+        List<String> columnDefinitions = formatColumnDefinitions(expectedBusinessColumns(metadata));
         String targetPk = metadata.resolveTargetPrimaryKeyColumn();
         columnDefinitions.add("PRIMARY KEY (" + quote(targetPk) + ")");
 
@@ -73,10 +104,10 @@ public class AreaOfInterestTableDdlBuilder {
                 + "\n)";
     }
 
-    private List<String> buildColumnDefinitions(AreaOfInterestTableMetadata metadata,
-                                                boolean includeGeometry,
-                                                boolean includeBusinessExtras) {
-        List<String> columnDefinitions = new ArrayList<>();
+    private List<DdlColumnDefinition> collectColumnDefinitions(AreaOfInterestTableMetadata metadata,
+                                                             boolean includeGeometry,
+                                                             boolean includeBusinessExtras) {
+        List<DdlColumnDefinition> columnDefinitions = new ArrayList<>();
         Set<String> emittedTargetColumns = new LinkedHashSet<>();
 
         for (ColumnMetadata column : metadata.columns()) {
@@ -91,7 +122,8 @@ public class AreaOfInterestTableDdlBuilder {
                 if (!emittedTargetColumns.add(targetGeom)) {
                     continue;
                 }
-                columnDefinitions.add(quote(targetGeom) + " geometry(Geometry, " + metadata.srid() + ")");
+                columnDefinitions.add(new DdlColumnDefinition(
+                        targetGeom, "geometry(Geometry, " + metadata.srid() + ")"));
                 continue;
             }
 
@@ -101,19 +133,40 @@ public class AreaOfInterestTableDdlBuilder {
             }
 
             String ddlType = resolveDdlType(targetColumnName, column);
-            columnDefinitions.add(quote(targetColumnName) + " " + ddlType);
+            columnDefinitions.add(new DdlColumnDefinition(targetColumnName, ddlType));
         }
         if (includeBusinessExtras) {
             if (!emittedTargetColumns.contains(AreaOfInterestConfig.AREA_COLUMN)
                     && metadata.totalAreaSourceColumn() == null) {
-                columnDefinitions.add(quote(AreaOfInterestConfig.AREA_COLUMN) + " numeric");
+                columnDefinitions.add(new DdlColumnDefinition(AreaOfInterestConfig.AREA_COLUMN, "numeric"));
                 emittedTargetColumns.add(AreaOfInterestConfig.AREA_COLUMN);
             }
             if (emittedTargetColumns.add(AreaOfInterestConfig.UPDATED_AT_COLUMN)) {
-                columnDefinitions.add(quote(AreaOfInterestConfig.UPDATED_AT_COLUMN) + " timestamptz");
+                columnDefinitions.add(new DdlColumnDefinition(AreaOfInterestConfig.UPDATED_AT_COLUMN, "timestamptz"));
             }
         }
         return columnDefinitions;
+    }
+
+    private List<String> formatColumnDefinitions(List<DdlColumnDefinition> columns) {
+        return columns.stream()
+                .map(col -> quote(col.name()) + " " + col.sqlType())
+                .collect(Collectors.toList());
+    }
+
+    private List<DdlColumnDefinition> dedupeColumns(List<DdlColumnDefinition> columns) {
+        List<DdlColumnDefinition> deduped = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (DdlColumnDefinition column : columns) {
+            if (seen.add(column.name())) {
+                deduped.add(column);
+            }
+        }
+        return deduped;
+    }
+
+    private boolean containsColumn(List<DdlColumnDefinition> columns, String name) {
+        return columns.stream().anyMatch(col -> col.name().equals(name));
     }
 
     private String resolveDdlType(String targetColumnName, ColumnMetadata column) {

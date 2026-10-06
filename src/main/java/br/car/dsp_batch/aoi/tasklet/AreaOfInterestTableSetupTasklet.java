@@ -2,6 +2,7 @@ package br.car.dsp_batch.aoi.tasklet;
 
 import br.car.dsp_batch.aoi.config.AreaOfInterestConfig;
 import br.car.dsp_batch.aoi.ddl.AreaOfInterestTableDdlBuilder;
+import br.car.dsp_batch.aoi.ddl.AreaOfInterestTargetSchemaAligner;
 import br.car.dsp_batch.aoi.introspection.AreaOfInterestIntrospectionService;
 import br.car.dsp_batch.aoi.metadata.AreaOfInterestMetadataRegistry;
 import br.car.dsp_batch.aoi.metadata.AreaOfInterestTableMetadata;
@@ -25,6 +26,7 @@ public class AreaOfInterestTableSetupTasklet implements Tasklet {
     private final JdbcTemplate geoTargetJdbc;
     private final AreaOfInterestIntrospectionService introspectionService;
     private final AreaOfInterestTableDdlBuilder ddlBuilder;
+    private final AreaOfInterestTargetSchemaAligner schemaAligner;
     private final AreaOfInterestMetadataRegistry registry;
     private final AreaOfInterestConfig config;
     private final String jobName;
@@ -34,6 +36,7 @@ public class AreaOfInterestTableSetupTasklet implements Tasklet {
                                            JdbcTemplate geoTargetJdbc,
                                            AreaOfInterestIntrospectionService introspectionService,
                                            AreaOfInterestTableDdlBuilder ddlBuilder,
+                                           AreaOfInterestTargetSchemaAligner schemaAligner,
                                            AreaOfInterestMetadataRegistry registry,
                                            AreaOfInterestConfig config,
                                            String jobName) {
@@ -42,6 +45,7 @@ public class AreaOfInterestTableSetupTasklet implements Tasklet {
         this.geoTargetJdbc = geoTargetJdbc;
         this.introspectionService = introspectionService;
         this.ddlBuilder = ddlBuilder;
+        this.schemaAligner = schemaAligner;
         this.registry = registry;
         this.config = config;
         this.jobName = jobName;
@@ -57,11 +61,22 @@ public class AreaOfInterestTableSetupTasklet implements Tasklet {
         targetJdbc.execute("CREATE SCHEMA IF NOT EXISTS " + quoteIdentifier(target.schema()));
         geoTargetJdbc.execute("CREATE SCHEMA IF NOT EXISTS " + quoteIdentifier(target.schema()));
 
-        for (String statement : ddlBuilder.buildBusinessTargetStatements(metadata)) {
+        String businessCreate = ddlBuilder.buildBusinessCreateTable(metadata);
+        log.debug("Executing business DDL: {}", businessCreate);
+        targetJdbc.execute(businessCreate);
+        schemaAligner.alignMissingColumns(
+                targetJdbc, target, ddlBuilder.expectedBusinessColumns(metadata));
+        for (String statement : ddlBuilder.buildBusinessIndexStatements(metadata)) {
             log.debug("Executing business DDL: {}", statement);
             targetJdbc.execute(statement);
         }
-        for (String statement : ddlBuilder.buildGeoTargetStatements(metadata)) {
+
+        String geoCreate = ddlBuilder.buildGeoCreateTable(metadata);
+        log.debug("Executing geo-target DDL: {}", geoCreate);
+        geoTargetJdbc.execute(geoCreate);
+        schemaAligner.alignMissingColumns(
+                geoTargetJdbc, target, ddlBuilder.expectedGeoColumns(metadata));
+        for (String statement : ddlBuilder.buildGeoIndexStatements(metadata)) {
             log.debug("Executing geo-target DDL: {}", statement);
             geoTargetJdbc.execute(statement);
         }
