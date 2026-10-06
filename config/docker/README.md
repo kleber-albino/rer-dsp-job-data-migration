@@ -20,7 +20,7 @@ The `dsp-job-migration` service uses Compose profile `migration`. Batch metadata
 | --- | --- |
 | `DSP_MIGRATION_CRON` | 5-field cron (e.g. `0 22 * * *`) written by `./setup.sh` Job 1/2 (every day / N hours / N minutes). `continuous` only. |
 | `DSP_MIGRATION_SCHEDULED_AT` | `YYYY-MM-DD HH:MM:SS`. Required for `scheduled-once`; optional first load for `continuous` (Schedule for later). |
-| `DSP_MIGRATION_TZ` | IANA timezone for wall clock. Read from `.env` (see `.env.example`). |
+| `DSP_MIGRATION_TZ` | IANA timezone for wall clock (default `UTC` in `.env.example`; `./setup.sh` prompts in UTC). Not JDBC `source-timezone` in `application.yaml`. |
 
 The JAR stays one-shot. Overlap: `flock` in the supercronic wrapper. A failed JAR does not stop the continuous container.
 
