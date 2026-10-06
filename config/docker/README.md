@@ -55,7 +55,8 @@ DSP_MIGRATION_EXECUTION_MODE=once docker compose --env-file .env --profile migra
 ```
 
 The image copies `application.yaml`, `mapLayersConfig.json`, the entrypoint, `publish_geoservers.sh`,
-`mark_first_data_load_ready.sh` and `populate_geoserver.sh` at build time (from `dsp_config` build context).
+`mark_first_data_load_ready.sh`, `populate_geoserver_exhibition.sh` and `populate_geoserver_download.sh`
+from this repository at build time.
 
 ## Related batch job
 

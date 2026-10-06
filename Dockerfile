@@ -1,7 +1,7 @@
 # =============================================================================
 # RER DSP — job-data-migration (dsp-batch)
 # Primary context: this repository root.
-# Optional dsp_core_infra context: rer-dsp-core/config (populate_geoserver.sh only)
+# populate_geoserver_*.sh vendored under config/docker/ (REST publish after migration)
 # =============================================================================
 
 FROM eclipse-temurin:21-jdk-jammy AS build
@@ -19,7 +19,7 @@ WORKDIR /app
 
 # supercronic: Unix crontab in continuous mode (entrypoint is baked into the image).
 # jq + postgresql-client: option 3 publishes GeoServer layers after the first load
-# (same populate_geoserver.sh used by ./setup.sh, called over the Docker network).
+# (populate_geoserver_*.sh used by ./setup.sh, called over the Docker network).
 # Pinned: https://github.com/aptible/supercronic/releases/tag/v0.2.49
 ARG TARGETARCH
 ENV SUPERCRONIC_VERSION=v0.2.49
@@ -47,9 +47,10 @@ COPY config/application/ /tmp/migration-app/
 COPY config/docker/entrypoint.sh /migration-entrypoint.sh
 COPY config/docker/publish_geoservers.sh /publish-geoservers.sh
 COPY config/docker/mark_first_data_load_ready.sh /mark_first_data_load_ready.sh
-COPY --from=dsp_core_infra GeoserverExhibition/docker/populate_geoserver.sh /opt/populate_geoserver.sh
+COPY config/docker/populate_geoserver_exhibition.sh /opt/populate_geoserver_exhibition.sh
+COPY config/docker/populate_geoserver_download.sh /opt/populate_geoserver_download.sh
 COPY config/map/ /tmp/map/
-RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /mark_first_data_load_ready.sh /opt/populate_geoserver.sh \
+RUN chmod +x /tmp/select-runtime-config.sh /migration-entrypoint.sh /publish-geoservers.sh /mark_first_data_load_ready.sh /opt/populate_geoserver_exhibition.sh /opt/populate_geoserver_download.sh \
     && mkdir -p /config \
     && /tmp/select-runtime-config.sh pick /tmp/migration-app application.yaml /config/application.yaml \
     && /tmp/select-runtime-config.sh pick /tmp/map mapLayersConfig.json /config/mapLayersConfig.json \

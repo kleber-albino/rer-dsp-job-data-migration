@@ -4,7 +4,6 @@
 set -e
 
 MARKER="${DSP_GEOSERVER_POPULATE_MARKER:-/tmp/dsp-geoserver-populated.done}"
-POPULATE_SCRIPT="${DSP_GEOSERVER_POPULATE_SCRIPT:-/opt/populate_geoserver.sh}"
 
 if [ -z "${DSP_MIGRATION_SCHEDULED_AT:-}" ]; then
   exit 0
@@ -13,11 +12,6 @@ fi
 if [ -f "$MARKER" ]; then
   echo "[publish-geoservers] layers already published — skipping"
   exit 0
-fi
-
-if [ ! -f "$POPULATE_SCRIPT" ]; then
-  echo "[publish-geoservers] populate script not found: ${POPULATE_SCRIPT}" >&2
-  exit 1
 fi
 
 GS_USER="${DSP_GEOSERVER_ADMIN_USER:-admin}"
@@ -48,6 +42,11 @@ run_populate() {
   name="$1"
   url="$2"
   datastore="$3"
+  populate_script="$4"
+  if [ ! -f "$populate_script" ]; then
+    echo "[publish-geoservers] populate script not found: ${populate_script}" >&2
+    exit 1
+  fi
   echo "[publish-geoservers] publishing layers on ${name} (${url})"
   GEOSERVER_URL="$url" \
     GEOSERVER_ADMIN_USER="$GS_USER" \
@@ -65,16 +64,18 @@ run_populate() {
     LAYER_SRS_TERRITORY_LEVEL_2="${LAYER_SRS_TERRITORY_LEVEL_2:-4326}" \
     LAYER_SRS_TERRITORY_LEVEL_3="${LAYER_SRS_TERRITORY_LEVEL_3:-4326}" \
     LAYER_SRS_AREA_OF_INTEREST="${LAYER_SRS_AREA_OF_INTEREST:-4326}" \
-    bash "$POPULATE_SCRIPT"
+    bash "$populate_script"
 }
 
 wait_for_geoserver_rest "GeoServer Exhibition" "$EXHIBITION_URL"
 wait_for_geoserver_rest "GeoServer Download" "$DOWNLOAD_URL"
 
 run_populate "GeoServer Exhibition" "$EXHIBITION_URL" \
-  "${DSP_GEOSERVER_EXHIBITION_DATASTORE:-dsp-geoserver-db}"
+  "${DSP_GEOSERVER_EXHIBITION_DATASTORE:-dsp-geoserver-db}" \
+  "${DSP_GEOSERVER_EXHIBITION_POPULATE_SCRIPT:-/opt/populate_geoserver_exhibition.sh}"
 run_populate "GeoServer Download" "$DOWNLOAD_URL" \
-  "${DSP_GEOSERVER_DOWNLOAD_DATASTORE:-dsp-geoserver-download-db}"
+  "${DSP_GEOSERVER_DOWNLOAD_DATASTORE:-dsp-geoserver-download-db}" \
+  "${DSP_GEOSERVER_DOWNLOAD_POPULATE_SCRIPT:-/opt/populate_geoserver_download.sh}"
 
 touch "$MARKER"
 echo "[publish-geoservers] Exhibition and Download layers published"
